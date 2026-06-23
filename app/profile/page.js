@@ -8,15 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import Footer from "@/components/Footer";
 import {
   User, Mail, Calendar, Shield, CheckCircle2, AlertCircle,
-  Key, Eye, EyeOff, Trash2, ExternalLink, Loader2,
-  LogOut, Pencil, BookOpen, FolderOpen, Video, Save,
-  ChevronRight, Sparkles, Lock
+  Loader2, LogOut, BookOpen, FolderOpen, Video, Save,
+  ChevronRight, Sparkles
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -26,30 +22,11 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
 
-  // API Key state
-  const [hasApiKey, setHasApiKey] = useState(null);
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [showKey, setShowKey] = useState(false);
-  const [keyStatus, setKeyStatus] = useState("idle"); // idle | saving | deleting | success | error
-  const [keyError, setKeyError] = useState("");
-
   const fetchUserData = useCallback(async () => {
     try {
       const res = await fetch("/api/user/profile");
       if (res.ok) setUserData(await res.json());
     } catch (e) { console.error("Error fetching profile:", e); }
-  }, []);
-
-  const fetchApiKeyStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/api/user/api-key");
-      if (res.ok) {
-        const data = await res.json();
-        setHasApiKey(data.hasKey);
-      } else {
-        setHasApiKey(false);
-      }
-    } catch { setHasApiKey(false); }
   }, []);
 
   const fetchStats = useCallback(async () => {
@@ -64,9 +41,9 @@ export default function ProfilePage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchUserData(), fetchApiKeyStatus(), fetchStats()]);
+    await Promise.all([fetchUserData(), fetchStats()]);
     setLoading(false);
-  }, [fetchUserData, fetchApiKeyStatus, fetchStats]);
+  }, [fetchUserData, fetchStats]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -79,50 +56,6 @@ export default function ProfilePage() {
       return () => clearTimeout(timer);
     }
   }, [status, router, fetchAll]);
-
-  const handleSaveKey = async () => {
-    if (!apiKeyInput.trim()) return;
-    setKeyStatus("saving");
-    setKeyError("");
-    try {
-      const res = await fetch("/api/user/api-key", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: apiKeyInput.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setKeyStatus("error");
-        setKeyError(data.error || "Failed to save");
-        return;
-      }
-      setKeyStatus("success");
-      setHasApiKey(true);
-      setApiKeyInput("");
-      setTimeout(() => setKeyStatus("idle"), 2000);
-    } catch {
-      setKeyStatus("error");
-      setKeyError("Network error");
-    }
-  };
-
-  const handleDeleteKey = async () => {
-    setKeyStatus("deleting");
-    setKeyError("");
-    try {
-      const res = await fetch("/api/user/api-key", { method: "DELETE" });
-      if (res.ok) {
-        setHasApiKey(false);
-        setKeyStatus("idle");
-      } else {
-        setKeyStatus("error");
-        setKeyError("Failed to remove key");
-      }
-    } catch {
-      setKeyStatus("error");
-      setKeyError("Network error");
-    }
-  };
 
   if (status === "loading" || loading) {
     return (
@@ -219,126 +152,6 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* API Key Management */}
-        <Card className="border-border/40 bg-card/50 backdrop-blur-sm">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Key className="h-4 w-4" /> Gemini API Key
-                </CardTitle>
-                <CardDescription className="text-xs mt-1">
-                  Your key is encrypted with AES-256-GCM and stored securely
-                </CardDescription>
-              </div>
-              {hasApiKey && (
-                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
-                  <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {hasApiKey ? (
-              <>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                  <div className="p-2 rounded-lg bg-emerald-500/10">
-                    <Lock className="h-4 w-4 text-emerald-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">API key is active</p>
-                    <p className="text-xs text-muted-foreground">
-                      Your key is encrypted and ready for AI operations
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                    onClick={handleDeleteKey}
-                    disabled={keyStatus === "deleting"}
-                  >
-                    {keyStatus === "deleting" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <><Trash2 className="h-3.5 w-3.5 mr-1" /> Remove</>
-                    )}
-                  </Button>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  To update your key, remove the current one and add a new key.
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
-                  <div className="p-2 rounded-lg bg-amber-500/10">
-                    <AlertCircle className="h-4 w-4 text-amber-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">No API key configured</p>
-                    <p className="text-xs text-muted-foreground">
-                      Add your Gemini API key to enable AI-powered features
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="api-key" className="text-xs">Google Gemini API Key</Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        id="api-key"
-                        type={showKey ? "text" : "password"}
-                        placeholder="AIzaSy..."
-                        value={apiKeyInput}
-                        onChange={(e) => setApiKeyInput(e.target.value)}
-                        className="pr-10 font-mono text-sm h-9"
-                        onKeyDown={(e) => e.key === "Enter" && handleSaveKey()}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowKey(!showKey)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                    <Button
-                      size="sm"
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white h-9 px-4"
-                      onClick={handleSaveKey}
-                      disabled={!apiKeyInput.trim() || keyStatus === "saving"}
-                    >
-                      {keyStatus === "saving" ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : keyStatus === "success" ? (
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                      ) : (
-                        "Save"
-                      )}
-                    </Button>
-                  </div>
-                  {keyError && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" /> {keyError}
-                    </p>
-                  )}
-                </div>
-
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <ExternalLink className="h-3 w-3" /> Get a free API key from Google AI Studio
-                </a>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Security Info */}
         <Card className="border-border/40 bg-card/50 backdrop-blur-sm">
           <CardHeader className="pb-3">
@@ -354,9 +167,9 @@ export default function ProfilePage() {
             />
             <Separator className="opacity-50" />
             <SecurityRow
-              label="API Key Encryption"
-              value="AES-256-GCM with unique IV"
-              status={hasApiKey ? "active" : "inactive"}
+              label="API Key"
+              value="Configured securely in environment (.env.local)"
+              status="active"
             />
             <Separator className="opacity-50" />
             <SecurityRow

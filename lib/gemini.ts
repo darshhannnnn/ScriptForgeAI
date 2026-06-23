@@ -98,16 +98,16 @@ export const getFlashModel = (timeoutMs: number = DEFAULT_GEMINI_TIMEOUT_MS, api
   );
 };
 
-// Knowledge Graph Model: Gemini 2.5 Pro for complex reasoning with higher token limits
+// Knowledge Graph Model: Gemini 2.5 Flash for general/budget reasoning
 export const getKnowledgeGraphModel = (timeoutMs: number = DEFAULT_GEMINI_TIMEOUT_MS, apiKey?: string) => {
   console.log(`[Gemini] Creating Knowledge Graph Model with timeout: ${timeoutMs}ms`);
   return getGeminiClient(apiKey).getGenerativeModel(
     {
-      model: 'gemini-2.5-pro',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.7, // Lower temperature for more structured JSON output
         topP: 0.95,
-        maxOutputTokens: 32768, // Much higher limit for comprehensive graph extraction
+        maxOutputTokens: 8192,
       },
     },
     { timeout: timeoutMs } // Pass timeout at model creation level
@@ -203,22 +203,13 @@ export async function generateWithRetry(
         const currentModelName = currentModel.model;
         let nextModelName = '';
 
-        if (currentModelName.includes('gemini-2.5-pro')) {
-          nextModelName = 'gemini-1.5-pro';
-        } else if (currentModelName.includes('gemini-1.5-pro-latest')) {
-          nextModelName = 'gemini-2.0-flash';
-        } else if (currentModelName.includes('gemini-1.5-pro')) {
-          nextModelName = 'gemini-1.5-pro-latest';
-        } else if (currentModelName.includes('gemini-2.5-flash')) {
-          nextModelName = 'gemini-2.0-flash';
-        } else if (currentModelName.includes('gemini-2.0-flash-lite')) {
-          // End of fallback chain
-        } else if (currentModelName.includes('gemini-2.0-flash')) {
-          nextModelName = 'gemini-1.5-flash';
-        } else if (currentModelName.includes('gemini-1.5-flash-latest')) {
-          nextModelName = 'gemini-2.0-flash-lite';
-        } else if (currentModelName.includes('gemini-1.5-flash')) {
-          nextModelName = 'gemini-1.5-flash-latest';
+        const fallbackChain = [
+          'gemini-2.5-flash'
+        ];
+
+        const matchIndex = fallbackChain.findIndex(m => currentModelName.includes(m));
+        if (matchIndex !== -1 && matchIndex < fallbackChain.length - 1) {
+          nextModelName = fallbackChain[matchIndex + 1];
         }
 
         if (nextModelName) {

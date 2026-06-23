@@ -83,23 +83,7 @@ export function decryptApiKey(stored: string): string {
 export async function getUserGeminiKey(
   session?: { user?: { email?: string | null } } | null
 ): Promise<string | null> {
-  // 1. Try to get user's personal key from DB
-  if (session?.user?.email) {
-    try {
-      await dbConnect();
-      const user = await User.findOne({ email: session.user.email })
-        .select('+apiKeys.gemini')
-        .lean();
-
-      if (user?.apiKeys?.gemini) {
-        return decryptApiKey(user.apiKeys.gemini);
-      }
-    } catch (err) {
-      console.error('[api-key-utils] Failed to retrieve user API key:', err);
-    }
-  }
-
-  // 2. Fall back to server env var
+  // Always use server-level env var
   return process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || null;
 }
 
@@ -109,17 +93,8 @@ export async function getUserGeminiKey(
 export async function hasUserGeminiKey(
   session?: { user?: { email?: string | null } } | null
 ): Promise<boolean> {
-  if (!session?.user?.email) return false;
-
-  try {
-    await dbConnect();
-    const user = await User.findOne({ email: session.user.email })
-      .select('+apiKeys.gemini')
-      .lean();
-    return !!(user?.apiKeys?.gemini);
-  } catch {
-    return false;
-  }
+  // Always return true since we fall back to the environment key
+  return true;
 }
 
 /**

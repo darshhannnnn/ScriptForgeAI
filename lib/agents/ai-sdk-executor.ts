@@ -191,16 +191,7 @@ async function executeStoryIntelligence(
   );
 
   if (!success || !object) {
-    console.warn('[AI SDK Executor] Story Intelligence failed, using fallback');
-    const fallback = createFallbackResponse('story-intelligence') as StoryContext;
-    return {
-      result: fallback,
-      updatedContext: {
-        ...context,
-        storyContext: fallback,
-        previousResults: { ...context.previousResults, 'story-intelligence': fallback }
-      }
-    };
+    throw new Error(`Story Intelligence Agent failed: ${error || 'Unknown error'}`);
   }
 
   const storyContext: StoryContext = {
@@ -242,16 +233,7 @@ async function executeKnowledgeGraph(
   );
 
   if (!success || !object) {
-    console.warn('[AI SDK Executor] Knowledge Graph failed, using fallback. Error:', error);
-    const fallback = createFallbackResponse('knowledge-graph') as KnowledgeGraphData;
-    return {
-      result: fallback,
-      updatedContext: {
-        ...context,
-        knowledgeGraph: fallback,
-        previousResults: { ...context.previousResults, 'knowledge-graph': fallback }
-      }
-    };
+    throw new Error(`Knowledge Graph Agent failed: ${error || 'Unknown error'}`);
   }
 
   // Convert to internal format
@@ -386,16 +368,7 @@ async function executeTemporalReasoning(
   );
 
   if (!success || !object) {
-    console.warn('[AI SDK Executor] Temporal Reasoning failed, using fallback');
-    const fallback = createFallbackResponse('temporal-reasoning') as TimelineData;
-    return {
-      result: fallback,
-      updatedContext: {
-        ...context,
-        timeline: fallback,
-        previousResults: { ...context.previousResults, 'temporal-reasoning': fallback }
-      }
-    };
+    throw new Error(`Temporal Reasoning Agent failed: ${error || 'Unknown error'}`);
   }
 
   // Convert to internal format
@@ -456,16 +429,7 @@ async function executeContinuityValidator(
   );
 
   if (!success || !object) {
-    console.warn('[AI SDK Executor] Continuity Validator failed, using fallback');
-    const fallback = createFallbackResponse('continuity-validator') as ContinuityReport;
-    return {
-      result: fallback,
-      updatedContext: {
-        ...context,
-        continuityReport: fallback,
-        previousResults: { ...context.previousResults, 'continuity-validator': fallback }
-      }
-    };
+    throw new Error(`Continuity Validator Agent failed: ${error || 'Unknown error'}`);
   }
 
   const report: ContinuityReport = {
@@ -507,16 +471,7 @@ async function executeCreativeCoAuthor(
   );
 
   if (!success || !object) {
-    console.warn('[AI SDK Executor] Creative Co-Author failed, using fallback');
-    const fallback = createFallbackResponse('creative-coauthor') as CreativeSuggestions;
-    return {
-      result: fallback,
-      updatedContext: {
-        ...context,
-        suggestions: fallback,
-        previousResults: { ...context.previousResults, 'creative-coauthor': fallback }
-      }
-    };
+    throw new Error(`Creative Co-Author Agent failed: ${error || 'Unknown error'}`);
   }
 
   const suggestions: CreativeSuggestions = object;
@@ -567,19 +522,17 @@ KNOWLEDGE GRAPH: ${JSON.stringify(context.knowledgeGraph || {}, null, 2)}
 
 Generate 5 specific, useful questions about the story.`;
 
-  const { object: queries, success: queriesSuccess } = await safeGenerateObject(
+  const { object: queries, success: queriesSuccess, error: queriesError } = await safeGenerateObject(
     queryPrompt,
     QueriesSchema,
     { model: 'flash', timeout: 60000, maxRetries: 2, apiKey: context.apiKey }
   );
 
-  const questionList = queriesSuccess && queries ? queries : [
-    "What are the key character relationships?",
-    "What are the unresolved plot threads?",
-    "What are the main conflicts?",
-    "How do the themes manifest?",
-    "What are potential story weaknesses?"
-  ];
+  if (!queriesSuccess || !queries) {
+    throw new Error(`Intelligent Recall Agent failed to generate questions: ${queriesError || 'Unknown error'}`);
+  }
+
+  const questionList = queries;
 
   // Answer each query
   const answers: RecallAnswer[] = [];
@@ -597,7 +550,7 @@ QUESTION: ${query}
 
 Provide a comprehensive answer with references from the story.`;
 
-    const { object: answer, success } = await safeGenerateObject(
+    const { object: answer, success, error: answerError } = await safeGenerateObject(
       answerPrompt,
       RecallAnswerSchema,
       { model: 'flash', timeout: 60000, maxRetries: 2, apiKey: context.apiKey }
@@ -606,13 +559,7 @@ Provide a comprehensive answer with references from the story.`;
     if (success && answer) {
       answers.push(answer);
     } else {
-      answers.push({
-        query,
-        answer: "Unable to process this query at the moment.",
-        confidence: 0,
-        references: [],
-        relatedInfo: []
-      });
+      throw new Error(`Intelligent Recall Agent failed to answer question "${query}": ${answerError || 'Unknown error'}`);
     }
   }
 
@@ -693,34 +640,7 @@ Make the visual prompts detailed enough for AI video generation (50-100 words ea
   );
 
   if (!success || !teaser) {
-    console.warn('[AI SDK Executor] Cinematic Teaser failed, using fallback');
-    const fallback: TeaserContent = {
-      essence: {
-        genre: 'Unknown',
-        mainConflict: 'Unable to analyze',
-        mood: 'Unknown',
-        hook: 'Please retry analysis',
-        keyMoments: [],
-      },
-      teaserScript: {
-        duration: 60,
-        narration: [],
-        structure: [],
-        musicSuggestion: '',
-        pacing: '',
-      },
-      visualPrompts: [],
-      hooks: [],
-      tagline: 'Analysis pending...',
-    };
-    return {
-      result: fallback,
-      updatedContext: {
-        ...context,
-        teaserContent: fallback,
-        previousResults: { ...context.previousResults, 'cinematic-teaser': fallback }
-      }
-    };
+    throw new Error(`Cinematic Teaser Agent failed: ${error || 'Unknown error'}`);
   }
 
   // Convert to internal format
@@ -817,7 +737,7 @@ export async function executeAgentWithAISDK(
     const elapsed = Date.now() - startTime;
     
     // Log success
-    agentLogger.endExecution(executionId, 'success', result.result, undefined, 'gemini-2.0-flash');
+    agentLogger.endExecution(executionId, 'success', result.result, undefined, 'gemini-2.5-flash');
     log.info(`Agent ${agentType} completed`, { duration: elapsed, executionId });
     
     return result;
@@ -828,17 +748,8 @@ export async function executeAgentWithAISDK(
     agentLogger.endExecution(executionId, 'error', undefined, error as Error);
     log.error(`Agent ${agentType} failed`, error as Error, { duration: elapsed, executionId });
     
-    // Return fallback instead of throwing (graceful degradation)
-    const fallback = createFallbackResponse(agentType);
-    agentLogger.endExecution(executionId, 'fallback', fallback);
-    
-    return {
-      result: { ...fallback, _error: (error as Error).message },
-      updatedContext: {
-        ...context,
-        previousResults: { ...context.previousResults, [agentType]: fallback }
-      }
-    };
+    // Rethrow error so that unified-executor and route handlers can handle it
+    throw error;
   }
 }
 

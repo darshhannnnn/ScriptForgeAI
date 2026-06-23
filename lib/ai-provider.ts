@@ -67,14 +67,14 @@ const google = new Proxy(function(){} as unknown as ReturnType<typeof createGoog
  */
 export const models = {
   // Fast model for general tasks - cost-effective
-  flash: google('gemini-2.0-flash'),
+  flash: google('gemini-2.5-flash'),
   
-  // Pro model for complex reasoning (Knowledge Graph, etc.)
-  pro: google('gemini-2.5-pro'),
+  // Pro model mapped to flash for free tier compatibility
+  pro: google('gemini-2.5-flash'),
   
   // Alias for backwards compatibility
-  reasoning: google('gemini-2.0-flash'),
-  knowledgeGraph: google('gemini-2.5-pro'),
+  reasoning: google('gemini-2.5-flash'),
+  knowledgeGraph: google('gemini-2.5-flash'),
 };
 
 /**
@@ -84,10 +84,10 @@ export function createModels(apiKey?: string) {
   if (!apiKey) return models; // use defaults
   const provider = getGoogleProvider(apiKey);
   return {
-    flash: provider('gemini-2.0-flash'),
-    pro: provider('gemini-2.5-pro'),
-    reasoning: provider('gemini-2.0-flash'),
-    knowledgeGraph: provider('gemini-2.5-pro'),
+    flash: provider('gemini-2.5-flash'),
+    pro: provider('gemini-2.5-flash'),
+    reasoning: provider('gemini-2.5-flash'),
+    knowledgeGraph: provider('gemini-2.5-flash'),
   };
 }
 
@@ -140,7 +140,7 @@ export async function safeGenerateText(
 
   const modelSet = createModels(apiKey);
   let currentModel = modelSet[modelType];
-  let currentModelId = modelType === 'pro' || modelType === 'knowledgeGraph' ? 'gemini-2.5-pro' : 'gemini-2.0-flash';
+  let currentModelId = 'gemini-2.5-flash';
   const startTime = Date.now();
   let lastError: Error | null = null;
 
@@ -213,22 +213,12 @@ export async function safeGenerateText(
         const provider = getGoogleProvider(apiKey);
         let nextModelId = '';
 
-        if (currentModelId === 'gemini-2.5-pro') {
-          nextModelId = 'gemini-1.5-pro';
-        } else if (currentModelId === 'gemini-1.5-pro-latest') {
-          nextModelId = 'gemini-2.0-flash';
-        } else if (currentModelId === 'gemini-1.5-pro') {
-          nextModelId = 'gemini-1.5-pro-latest';
-        } else if (currentModelId === 'gemini-2.5-flash') {
-          nextModelId = 'gemini-2.0-flash';
-        } else if (currentModelId === 'gemini-2.0-flash-lite') {
-          // End of fallback chain
-        } else if (currentModelId === 'gemini-2.0-flash') {
-          nextModelId = 'gemini-1.5-flash';
-        } else if (currentModelId === 'gemini-1.5-flash-latest') {
-          nextModelId = 'gemini-2.0-flash-lite';
-        } else if (currentModelId === 'gemini-1.5-flash') {
-          nextModelId = 'gemini-1.5-flash-latest';
+        const fallbackChain = [
+          'gemini-2.5-flash'
+        ];
+        const currentIndex = fallbackChain.indexOf(currentModelId);
+        if (currentIndex !== -1 && currentIndex < fallbackChain.length - 1) {
+          nextModelId = fallbackChain[currentIndex + 1];
         }
 
         if (nextModelId) {
@@ -274,7 +264,7 @@ export async function safeGenerateObject<T>(
 
   const modelSet = createModels(apiKey);
   let currentModel = modelSet[modelType];
-  let currentModelId = modelType === 'pro' || modelType === 'knowledgeGraph' ? 'gemini-2.5-pro' : 'gemini-2.0-flash';
+  let currentModelId = 'gemini-2.5-flash';
   const startTime = Date.now();
   let lastError: Error | null = null;
 
@@ -334,22 +324,12 @@ export async function safeGenerateObject<T>(
         const provider = getGoogleProvider(apiKey);
         let nextModelId = '';
 
-        if (currentModelId === 'gemini-2.5-pro') {
-          nextModelId = 'gemini-1.5-pro';
-        } else if (currentModelId === 'gemini-1.5-pro-latest') {
-          nextModelId = 'gemini-2.0-flash';
-        } else if (currentModelId === 'gemini-1.5-pro') {
-          nextModelId = 'gemini-1.5-pro-latest';
-        } else if (currentModelId === 'gemini-2.5-flash') {
-          nextModelId = 'gemini-2.0-flash';
-        } else if (currentModelId === 'gemini-2.0-flash-lite') {
-          // End of fallback chain
-        } else if (currentModelId === 'gemini-2.0-flash') {
-          nextModelId = 'gemini-1.5-flash';
-        } else if (currentModelId === 'gemini-1.5-flash-latest') {
-          nextModelId = 'gemini-2.0-flash-lite';
-        } else if (currentModelId === 'gemini-1.5-flash') {
-          nextModelId = 'gemini-1.5-flash-latest';
+        const fallbackChain = [
+          'gemini-2.5-flash'
+        ];
+        const currentIndex = fallbackChain.indexOf(currentModelId);
+        if (currentIndex !== -1 && currentIndex < fallbackChain.length - 1) {
+          nextModelId = fallbackChain[currentIndex + 1];
         }
 
         if (nextModelId) {

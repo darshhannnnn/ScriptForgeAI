@@ -96,8 +96,23 @@ export async function POST(request) {
 
   const trimmedKey = apiKey.trim();
 
-  // Save the key directly without validation
-  // The key will be tested on actual use
+  // Validate key by making a tiny test request to Gemini
+  try {
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const testClient = new GoogleGenerativeAI(trimmedKey);
+    const model = testClient.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const result = await model.generateContent('Say "OK"');
+    const text = result.response.text();
+    if (!text) throw new Error('Empty response');
+  } catch (err) {
+    console.error('[api-key] Validation failed:', err?.message);
+    return NextResponse.json(
+      { error: `Invalid API key - could not authenticate with Google Gemini: ${err?.message || 'Unknown error'}` },
+      { status: 422 }
+    );
+  }
+
+  // Key is valid – encrypt & store
   await saveUserGeminiKey(session.user.email, trimmedKey);
 
   return NextResponse.json({ success: true, message: 'API key saved securely' });
